@@ -1,3 +1,21 @@
+# Python
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# NHANES downloaded data (large XPT files — run build_dataset.py to regenerate)
+backend/data/
+
+# Trained ML models (binary files — run train_knn.py to regenerate)
+backend/models/
+
+# Temp files created by the API
+backend/nhanes_data/
+backend/patient_profile_temp.csv
+
 # Node
 node_modules/
 **/node_modules/

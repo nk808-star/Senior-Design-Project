@@ -5,6 +5,8 @@ export interface RiskFilters {
   gender?: string;
   diet?: string;
   ageGroup?: string;
+  physicalActivity?: string;
+  smokingStatus?: string;
   [key: string]: string | undefined;
 }
 
