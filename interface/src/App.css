@@ -48,6 +48,28 @@ body {
 /* Filter sections */
 .filter-section { border-bottom: 0.5px solid rgba(0,0,0,0.08); }
 
+.section-header-static {
+  padding: 11px 16px;
+  display: flex;
+  align-items: center;
+}
+
+.disease-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1a1a1a;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.disease-checkbox-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: #185FA5;
+}
+
 .section-header {
   width: 100%; background: none; border: none; cursor: pointer;
   padding: 11px 16px;

@@ -49,12 +49,21 @@ export interface FilterOptions {
   [key: string]: string[];
 }
 
+// --- Disease selector config ---
+const ALL_DISEASES: { id: string; label: string }[] = [
+  { id: 'gout',               label: 'Gout' },
+  { id: 'diabetes',           label: 'Type 2 Diabetes' },
+  { id: 'ckd',                label: 'Chronic Kidney Disease' },
+  { id: 'hypertension',       label: 'Hypertension' },
+  { id: 'cvd',                label: 'Cardiovascular Disease' },
+  { id: 'metabolic_syndrome', label: 'Metabolic Syndrome' },
+];
+
 // --- Filter category config ---
-// Add/remove/rename keys here to match whatever your backend returns
 const FILTER_SECTIONS: { label: string; keys: (keyof RiskFilters)[] }[] = [
   {
     label: 'Demographics & socioeconomic',
-    keys: ['ageGroup', 'gender', 'ethnicity', 'incomeLevel', 'education', 'insuranceStatus'],
+    keys: ['ageGroup', 'gender', 'ethnicity', 'socioeconomicStatus', 'income', 'insuranceStatus', 'employmentStatus'],
   },
   {
     label: 'Lifestyle',
@@ -62,11 +71,11 @@ const FILTER_SECTIONS: { label: string; keys: (keyof RiskFilters)[] }[] = [
   },
   {
     label: 'Renal & Kidney Function',
-    keys: ['uricAcid', 'creatinine', 'egfr', 'BUN', 'albumin', 'acr', 'urineUricAcid'],
+    keys: ['uricAcid', 'creatinine', 'egfr', 'BUN'],
   },
   {
     label: 'Metabolic & Cardiovascular',
-    keys: ['bmi', 'bloodGlucose', 'hba1c', 'insulin', 'HDL', 'LDL', 'triglycerides', 'crp'],
+    keys: ['bmi', 'bloodGlucose', 'hba1c', 'HDL', 'LDL', 'triglycerides', 'crp'],
   },
 ];
 
@@ -149,28 +158,67 @@ function FilterSection({
   );
 }
 
+// --- Disease Selector ---
+function DiseaseSelector({
+  selected,
+  onChange,
+}: {
+  selected: Set<string>;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="filter-section">
+      <div className="section-header-static">
+        <span className="section-label">Diseases to display</span>
+      </div>
+      <div className="section-body">
+        {ALL_DISEASES.map(({ id, label }) => (
+          <label key={id} className="disease-checkbox-row">
+            <input
+              type="checkbox"
+              checked={selected.has(id)}
+              onChange={() => onChange(id)}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // --- Main App ---
 function App() {
   const [activeFilters, setActiveFilters] = useState<RiskFilters>({});
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
   const [riskData, setRiskData] = useState<RiskResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedDiseases, setSelectedDiseases] = useState<Set<string>>(
+    new Set(ALL_DISEASES.map((d) => d.id))
+  );
 
- useEffect(() => {
-  fetch('http://localhost:8000/api/filters')
-    .then((r) => r.json())
-    .then((data: FilterOptions) => { 
-      console.log("RAW NHANES DATA:", data); 
-      setFilterOptions(data); 
-      setLoading(false); 
-    })
-    .catch(() => setLoading(false));
-}, []);
+  const toggleDisease = (id: string) => {
+    setSelectedDiseases((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    fetch('/api/filters')
+      .then((r) => r.json())
+      .then((data: FilterOptions) => {
+        setFilterOptions(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams();
     Object.entries(activeFilters).forEach(([k, v]) => { if (v) params.append(k, v); });
-    fetch(`http://localhost:8000/api/risk?${params.toString()}`)
+    fetch(`/api/risk?${params.toString()}`)
       .then((r) => r.json())
       .then((data: RiskResponse) => setRiskData(data))
       .catch(console.error);
@@ -202,6 +250,8 @@ function App() {
             )}
           </div>
 
+          <DiseaseSelector selected={selectedDiseases} onChange={toggleDisease} />
+
           {filterOptions && FILTER_SECTIONS.map((section) => (
             <FilterSection
               key={section.label}
@@ -224,7 +274,7 @@ function App() {
           </div>
 
           <div className="risk-grid">
-            {riskData?.diseaseRisks.map((risk) => (
+            {riskData?.diseaseRisks.filter((r) => selectedDiseases.has(r.diseaseId)).map((risk) => (
               <div key={risk.diseaseId} className={`risk-card risk-${risk.riskLevel}`}>
                 <div className="risk-card-header">
                   <h3>{risk.diseaseName}</h3>

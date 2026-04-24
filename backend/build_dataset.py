@@ -45,7 +45,7 @@ CYCLES = [
 
 # Base file names (suffix appended per cycle)
 FILE_BASES = {
-    "demo":   "DEMO",    # Demographics
+    "demo":   "DEMO",    # Demographics (age, sex, race, income-to-poverty)
     "bmx":    "BMX",     # Body measures (BMI, waist)
     "bpx":    "BPX",     # Blood pressure
     "tchol":  "TCHOL",   # Total cholesterol
@@ -54,10 +54,12 @@ FILE_BASES = {
     "glu":    "GLU",     # Fasting glucose
     "ghb":    "GHB",     # HbA1c
     "biopro": "BIOPRO",  # Creatinine, uric acid, BUN, ALT, GGT
-    "hscrp":  "HSCRP",   # High-sensitivity CRP (named CRP in 2009-2012)
+    "hscrp":  "HSCRP",   # High-sensitivity CRP (named CRP in older cycles)
     "smq":    "SMQ",     # Smoking questionnaire
     "paq":    "PAQ",     # Physical activity questionnaire
     "alq":    "ALQ",     # Alcohol use
+    "hiq":    "HIQ",     # Health insurance questionnaire
+    "ocq":    "OCQ",     # Occupation / employment questionnaire
 }
 
 # Some files use a different base name in older cycles
@@ -310,6 +312,42 @@ def _bin_features(df: pd.DataFrame) -> pd.DataFrame:
         return 1 if ggt > thresh else 0
     f["f_ggt"] = df.apply(_ggt, axis=1).astype(float)
 
+    # f_income  0=Low(<$35k) 1=Middle($35k-$75k) 2=High(>=$75k)
+    # INDHHIN2 / INDHHINC categories: 1-6=Low, 7-10=Middle, 11-12=High
+    def _income(val):
+        if pd.isna(val) or val in [13, 14, 15]:  # aggregated/ambiguous categories
+            return np.nan
+        if val <= 6:
+            return 0
+        if val <= 10:
+            return 1
+        return 2
+    if "INCOME_CAT" in df.columns:
+        f["f_income"] = df["INCOME_CAT"].apply(_income).astype(float)
+    else:
+        f["f_income"] = np.nan
+
+    # f_insurance  0=Uninsured 1=Insured  (HIQ011: 1=Yes, 2=No)
+    if "HIQ011" in df.columns:
+        f["f_insurance"] = df["HIQ011"].map({1: 1, 2: 0}).astype(float)
+    else:
+        f["f_insurance"] = np.nan
+
+    # f_employment  0=Not in workforce 1=Unemployed 2=Employed
+    # OCQ150: 1=Working, 2=Has job but not at work, 3=Looking for work, 4=Not working
+    def _emp(val):
+        if pd.isna(val):
+            return np.nan
+        if val in [1, 2]:
+            return 2
+        if val == 3:
+            return 1
+        return 0
+    if "OCQ150" in df.columns:
+        f["f_employment"] = df["OCQ150"].apply(_emp).astype(float)
+    else:
+        f["f_employment"] = np.nan
+
     return f
 
 
@@ -387,6 +425,7 @@ FEATURE_COLS = [
     "f_hdl", "f_ldl", "f_triglycerides", "f_crp",
     "f_egfr", "f_creatinine", "f_bun", "f_uric_acid",
     "f_alt", "f_ggt",
+    "f_income", "f_insurance", "f_employment",
 ]
 
 LABEL_COLS = [
@@ -400,7 +439,28 @@ def _merge_cycle(dfs: dict) -> pd.DataFrame | None:
     if "demo" not in dfs:
         return None
 
-    df = dfs["demo"][["SEQN", "RIDAGEYR", "RIAGENDR", "RIDRETH3", "INDFMPIR"]].copy()
+    demo = dfs["demo"]
+
+    # RIDRETH3 (6-category) was introduced in 2007-2008.
+    # Earlier cycles use RIDRETH1 (5-category) — remap it to RIDRETH3 column name
+    # so downstream code is uniform. Categories 1-4 map directly; 5 → 7 (Other).
+    if "RIDRETH3" not in demo.columns and "RIDRETH1" in demo.columns:
+        demo = demo.copy()
+        demo["RIDRETH3"] = demo["RIDRETH1"]
+
+    # Income column changed names between cycles
+    # INDHHIN2 = 2007+,  INDHHINC = 1999-2006
+    if "INDHHIN2" in demo.columns:
+        demo = demo.copy()
+        demo["INCOME_CAT"] = demo["INDHHIN2"]
+    elif "INDHHINC" in demo.columns:
+        demo = demo.copy()
+        demo["INCOME_CAT"] = demo["INDHHINC"]
+    else:
+        demo = demo.copy()
+        demo["INCOME_CAT"] = np.nan
+
+    df = demo[["SEQN", "RIDAGEYR", "RIAGENDR", "RIDRETH3", "INDFMPIR", "INCOME_CAT"]].copy()
 
     merges = [
         ("bmx",    ["SEQN", "BMXBMI", "BMXWAIST"]),
@@ -415,6 +475,8 @@ def _merge_cycle(dfs: dict) -> pd.DataFrame | None:
         ("smq",    ["SEQN", "SMQ020", "SMQ040"]),
         ("paq",    ["SEQN", "PAQ605", "PAQ620", "PAD615", "PAD630"]),
         ("alq",    ["SEQN", "ALQ130"]),
+        ("hiq",    ["SEQN", "HIQ011"]),
+        ("ocq",    ["SEQN", "OCQ150"]),
     ]
     for key, cols in merges:
         if key not in dfs:
@@ -445,19 +507,20 @@ def build():
 
     # --- Numeric coercion ---
     num_cols = [
-        "RIDAGEYR", "RIAGENDR", "RIDRETH3", "INDFMPIR",
+        "RIDAGEYR", "RIAGENDR", "RIDRETH3", "INDFMPIR", "INCOME_CAT",
         "BMXBMI", "BMXWAIST", "BPXSY1", "BPXDI1",
         "LBXTC", "LBXTR", "LBDLDL", "LBDHDD",
         "LBXGLU", "LBXGH", "LBXSCR", "LBXSUA", "LBXSBU",
         "LBXSATSI", "LBXSGTSI", "LBXHSCRP",
         "SMQ020", "SMQ040", "PAD615", "PAD630", "ALQ130",
+        "HIQ011", "OCQ150",
     ]
     for col in num_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # Replace NHANES refusal/don't-know sentinels with NaN
-    for col in ["SMQ020", "SMQ040", "ALQ130"]:
+    for col in ["SMQ020", "SMQ040", "ALQ130", "INCOME_CAT", "HIQ011", "OCQ150"]:
         if col in df.columns:
             df.loc[df[col].isin([7, 9, 77, 99, 777, 999]), col] = np.nan
 

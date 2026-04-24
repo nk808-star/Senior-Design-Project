@@ -16,10 +16,13 @@ risk_model = RiskModelEngine()
 def get_filters():
     filters = {
         # Demographics & Socioeconomic
-        "ageGroup":            ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
-        "gender":              ["Male", "Female"],
-        "ethnicity":           ["Mexican American", "Other Hispanic", "Non-Hispanic White", "Non-Hispanic Black", "Other"],
+        "ageGroup":          ["18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
+        "gender":            ["Male", "Female"],
+        "ethnicity":         ["Mexican American", "Other Hispanic", "Non-Hispanic White", "Non-Hispanic Black", "Other"],
         "socioeconomicStatus": ["Low", "Middle", "High"],
+        "income":            ["Low (<$35k)", "Middle ($35k-$75k)", "High (>=$75k)"],
+        "insuranceStatus":   ["Insured", "Uninsured"],
+        "employmentStatus":  ["Employed", "Unemployed", "Not in workforce"],
         # Lifestyle
         "smokingStatus":   ["Never", "Former", "Current"],
         "alcoholUse":      ["None", "Moderate", "Heavy"],

@@ -161,6 +161,18 @@ class RiskModelEngine:
         # f_ggt  (0=Normal, 1=High)
         f.append(1.0 if filters.get("ggt") == "High" else 0.0)
 
+        # f_income  (0=Low, 1=Middle, 2=High)
+        income_map = {"Low (<$35k)": 0, "Middle ($35k-$75k)": 1, "High (>=$75k)": 2}
+        f.append(float(income_map.get(filters.get("income", ""), 1)))
+
+        # f_insurance  (0=Uninsured, 1=Insured)
+        ins = filters.get("insuranceStatus", "")
+        f.append(0.0 if ins == "Uninsured" else 1.0 if ins == "Insured" else 1.0)
+
+        # f_employment  (0=Not in workforce, 1=Unemployed, 2=Employed)
+        emp_map = {"Not in workforce": 0, "Unemployed": 1, "Employed": 2}
+        f.append(float(emp_map.get(filters.get("employmentStatus", ""), 2)))
+
         return np.array(f, dtype=float).reshape(1, -1)
 
     # ------------------------------------------------------------------ #
@@ -289,6 +301,7 @@ class RiskModelEngine:
             "ageGroup", "gender", "smokingStatus", "physicalActivity", "bmi",
             "bloodGlucose", "hba1c", "HDL", "LDL", "triglycerides", "crp",
             "egfr", "creatinine", "BUN", "uricAcid",
+            "income", "insuranceStatus", "employmentStatus",
         ]
         filled = sum(1 for k in keys if filters.get(k))
         return round(0.45 + (filled / len(keys)) * 0.50, 2)
