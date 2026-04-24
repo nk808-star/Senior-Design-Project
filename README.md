@@ -27,6 +27,7 @@ Risk scores are produced by KNN classifiers trained on real NHANES survey data f
 │   ├── ml_model.py            # Loads trained KNN models, encodes UI filters, returns predictions
 │   ├── build_dataset.py       # Downloads NHANES data, builds feature/label CSVs
 │   ├── train_knn.py           # Trains KNN per disease, sweeps K=1..15 via DICE score
+│   ├── validate_model.py      # 5-fold cross validation, ROC curves, performance report
 │   ├── patient_profile_builder.py
 │   ├── download_nhanes_file.py
 │   ├── requirements.txt
@@ -114,7 +115,30 @@ python train_knn.py
 
 Output will show the optimal K and DICE/IoU/Accuracy for each disease. DICE optimisation plots are saved to `backend/models/` as PNG files.
 
-### Step 3 — Start the app
+### Step 3 *(optional)* — Validate the models
+
+Runs 5-fold stratified cross validation on each disease model and generates a full performance report. Useful for evaluating model quality or including results in a report.
+
+```bash
+python validate_model.py
+```
+
+Outputs saved to `backend/models/`:
+- `validation_report.txt` — summary table with DICE, AUC, Sensitivity, Specificity, PPV, and Accuracy per disease (mean ± std across folds)
+- `{disease}_roc_curve.png` — ROC curve per disease (one PNG per disease)
+
+**Reading the results:**
+
+| Metric | What it means |
+|---|---|
+| DICE | Balance between catching real cases and avoiding false alarms |
+| AUC | Overall discrimination — 0.5 = random, 1.0 = perfect; >0.75 is good |
+| Sensitivity | % of actual cases correctly flagged (low = missing sick people) |
+| Specificity | % of healthy people correctly cleared (low = over-diagnosing) |
+| PPV | When the model says "high risk", how often it is correct |
+| Accuracy | Overall correct predictions (can be misleading for rare diseases) |
+
+### Step 4 — Start the app
 
 Follow the **Running the app** steps above.
 
