@@ -168,7 +168,12 @@ def train_all():
             "nhanes_features.csv not found — run build_dataset.py first."
         )
 
-    X = pd.read_csv(feat_path).values.astype(float)
+    X_df = pd.read_csv(feat_path)
+    # Impute any remaining NaNs with column median before training
+    for col in X_df.columns:
+        median = X_df[col].median()
+        X_df[col] = X_df[col].fillna(median)
+    X = X_df.values.astype(float)
     L = pd.read_csv(label_path)
 
     os.makedirs(MODELS_DIR, exist_ok=True)
@@ -184,8 +189,17 @@ def train_all():
 
         # Drop rows where the label is NaN
         valid   = ~np.isnan(y_all)
-        X_valid = X[valid]
+        X_valid = X[valid].copy()
         y_valid = y_all[valid].astype(int)
+
+        # Impute any remaining NaNs per-column using median; fall back to 0
+        # if the entire column is NaN (feature not collected for these rows)
+        for ci in range(X_valid.shape[1]):
+            nan_mask = np.isnan(X_valid[:, ci])
+            if nan_mask.any():
+                median = np.nanmedian(X_valid[:, ci])
+                fill = median if not np.isnan(median) else 0.0
+                X_valid[nan_mask, ci] = fill
 
         if y_valid.sum() < 10:
             print(f"\nSkipping {disease} — too few positive examples ({y_valid.sum()})")

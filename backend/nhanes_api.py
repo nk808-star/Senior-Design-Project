@@ -45,6 +45,16 @@ def get_filters():
         "alt": ["Normal", "Elevated"],
         "ast": ["Normal", "Elevated"],
         "ggt": ["Normal", "High"],
+        # Blood & metabolic
+        "albumin":    ["Low (<3.5)", "Normal (3.5-5.0)"],
+        "insulin":    ["Normal (<25)", "Elevated (25-50)", "High (>50)"],
+        "hemoglobin": ["Low", "Normal", "High"],
+        "hct":        ["Low", "Normal", "High"],
+        "wbc":        ["Low (<4.5)", "Normal (4.5-11.0)", "High (>11.0)"],
+        # Electrolytes
+        "sodium":     ["Low (<136)", "Normal (136-145)", "High (>145)"],
+        "potassium":  ["Low (<3.5)", "Normal (3.5-5.0)", "High (>5.0)"],
+        "calcium":    ["Low (<8.5)", "Normal (8.5-10.5)", "High (>10.5)"],
     }
     return jsonify(filters)
 

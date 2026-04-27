@@ -161,6 +161,39 @@ class RiskModelEngine:
         # f_ggt  (0=Normal, 1=High)
         f.append(1.0 if filters.get("ggt") == "High" else 0.0)
 
+        # f_ast  (0=Normal, 1=Elevated)
+        f.append(1.0 if filters.get("ast") == "Elevated" else 0.0)
+
+        # f_albumin  (0=Low, 1=Normal)
+        f.append(0.0 if filters.get("albumin") == "Low (<3.5)" else 1.0)
+
+        # f_insulin  (0=Normal, 1=Elevated, 2=High)
+        ins_map = {"Normal (<25)": 0, "Elevated (25-50)": 1, "High (>50)": 2}
+        f.append(float(ins_map.get(filters.get("insulin", ""), 0)))
+
+        # f_hemoglobin  (0=Low, 1=Normal, 2=High)
+        hgb_map = {"Low": 0, "Normal": 1, "High": 2}
+        f.append(float(hgb_map.get(filters.get("hemoglobin", ""), 1)))
+
+        # f_hct  (0=Low, 1=Normal, 2=High)
+        f.append(float(hgb_map.get(filters.get("hct", ""), 1)))
+
+        # f_wbc  (0=Low, 1=Normal, 2=High)
+        wbc_map = {"Low (<4.5)": 0, "Normal (4.5-11.0)": 1, "High (>11.0)": 2}
+        f.append(float(wbc_map.get(filters.get("wbc", ""), 1)))
+
+        # f_sodium  (0=Low, 1=Normal, 2=High)
+        elec_map = {"Low (<136)": 0, "Normal (136-145)": 1, "High (>145)": 2}
+        f.append(float(elec_map.get(filters.get("sodium", ""), 1)))
+
+        # f_potassium  (0=Low, 1=Normal, 2=High)
+        pot_map = {"Low (<3.5)": 0, "Normal (3.5-5.0)": 1, "High (>5.0)": 2}
+        f.append(float(pot_map.get(filters.get("potassium", ""), 1)))
+
+        # f_calcium  (0=Low, 1=Normal, 2=High)
+        cal_map = {"Low (<8.5)": 0, "Normal (8.5-10.5)": 1, "High (>10.5)": 2}
+        f.append(float(cal_map.get(filters.get("calcium", ""), 1)))
+
         # f_income  (0=Low, 1=Middle, 2=High)
         income_map = {"Low (<$35k)": 0, "Middle ($35k-$75k)": 1, "High (>=$75k)": 2}
         f.append(float(income_map.get(filters.get("income", ""), 1)))
@@ -301,6 +334,8 @@ class RiskModelEngine:
             "ageGroup", "gender", "smokingStatus", "physicalActivity", "bmi",
             "bloodGlucose", "hba1c", "HDL", "LDL", "triglycerides", "crp",
             "egfr", "creatinine", "BUN", "uricAcid",
+            "alt", "ast", "ggt", "albumin", "insulin",
+            "hemoglobin", "hct", "wbc", "sodium", "potassium", "calcium",
             "income", "insuranceStatus", "employmentStatus",
         ]
         filled = sum(1 for k in keys if filters.get(k))

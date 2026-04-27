@@ -60,7 +60,11 @@ FILE_BASES = {
     "alq":    "ALQ",     # Alcohol use
     "hiq":    "HIQ",     # Health insurance questionnaire
     "ocq":    "OCQ",     # Occupation / employment questionnaire
+    "cbc":    "CBC",     # Complete blood count (hemoglobin, HCT, WBC)
+    "ins":    "INS",     # Insulin (fasting subsample)
 }
+
+# CBC file was named L25_* in very early cycles — handled by graceful skip
 
 # Some files use a different base name in older cycles
 FILE_OVERRIDES = {
@@ -312,6 +316,101 @@ def _bin_features(df: pd.DataFrame) -> pd.DataFrame:
         return 1 if ggt > thresh else 0
     f["f_ggt"] = df.apply(_ggt, axis=1).astype(float)
 
+    # f_ast  0=Normal 1=Elevated  (male >40, female >31 U/L)
+    def _ast(row):
+        ast = row.get("LBXSASSI")
+        if pd.isna(ast):
+            return np.nan
+        thresh = 40 if row.get("RIAGENDR") == 1 else 31
+        return 1 if ast > thresh else 0
+    f["f_ast"] = df.apply(_ast, axis=1).astype(float)
+
+    # f_albumin  0=Low(<3.5) 1=Normal(3.5-5.0)  g/dL
+    if "LBXSAL" in df.columns:
+        f["f_albumin"] = np.where(
+            df["LBXSAL"].isna(), np.nan,
+            np.where(df["LBXSAL"] < 3.5, 0.0, 1.0)
+        )
+    else:
+        f["f_albumin"] = np.nan
+
+    # f_insulin  0=Normal(<25) 1=Elevated(25-50) 2=High(>50)  µU/mL
+    if "LBXIN" in df.columns:
+        f["f_insulin"] = pd.cut(
+            df["LBXIN"], bins=[-np.inf, 25, 50, np.inf],
+            labels=[0, 1, 2]
+        ).astype(float)
+    else:
+        f["f_insulin"] = np.nan
+
+    # f_hemoglobin  0=Low 1=Normal 2=High  (gender-specific)
+    def _hgb(row):
+        hgb = row.get("LBXHGB")
+        if pd.isna(hgb):
+            return np.nan
+        if row.get("RIAGENDR") == 1:
+            if hgb < 13.5: return 0
+            return 2 if hgb > 17.5 else 1
+        else:
+            if hgb < 12.0: return 0
+            return 2 if hgb > 15.5 else 1
+    if "LBXHGB" in df.columns:
+        f["f_hemoglobin"] = df.apply(_hgb, axis=1).astype(float)
+    else:
+        f["f_hemoglobin"] = np.nan
+
+    # f_hct  0=Low 1=Normal 2=High  (gender-specific, %)
+    def _hct(row):
+        hct = row.get("LBXHCT")
+        if pd.isna(hct):
+            return np.nan
+        if row.get("RIAGENDR") == 1:
+            if hct < 41: return 0
+            return 2 if hct > 53 else 1
+        else:
+            if hct < 36: return 0
+            return 2 if hct > 46 else 1
+    if "LBXHCT" in df.columns:
+        f["f_hct"] = df.apply(_hct, axis=1).astype(float)
+    else:
+        f["f_hct"] = np.nan
+
+    # f_wbc  0=Low(<4.5) 1=Normal(4.5-11.0) 2=High(>11.0)  1000 cells/µL
+    if "LBXWBCSI" in df.columns:
+        f["f_wbc"] = pd.cut(
+            df["LBXWBCSI"], bins=[-np.inf, 4.5, 11.0, np.inf],
+            labels=[0, 1, 2]
+        ).astype(float)
+    else:
+        f["f_wbc"] = np.nan
+
+    # f_sodium  0=Low(<136) 1=Normal(136-145) 2=High(>145)  mmol/L
+    if "LBXSNASI" in df.columns:
+        f["f_sodium"] = pd.cut(
+            df["LBXSNASI"], bins=[-np.inf, 136, 145, np.inf],
+            labels=[0, 1, 2]
+        ).astype(float)
+    else:
+        f["f_sodium"] = np.nan
+
+    # f_potassium  0=Low(<3.5) 1=Normal(3.5-5.0) 2=High(>5.0)  mmol/L
+    if "LBXSKSI" in df.columns:
+        f["f_potassium"] = pd.cut(
+            df["LBXSKSI"], bins=[-np.inf, 3.5, 5.0, np.inf],
+            labels=[0, 1, 2]
+        ).astype(float)
+    else:
+        f["f_potassium"] = np.nan
+
+    # f_calcium  0=Low(<8.5) 1=Normal(8.5-10.5) 2=High(>10.5)  mg/dL
+    if "LBXSCASI" in df.columns:
+        f["f_calcium"] = pd.cut(
+            df["LBXSCASI"], bins=[-np.inf, 8.5, 10.5, np.inf],
+            labels=[0, 1, 2]
+        ).astype(float)
+    else:
+        f["f_calcium"] = np.nan
+
     # f_income  0=Low(<$35k) 1=Middle($35k-$75k) 2=High(>=$75k)
     # INDHHIN2 / INDHHINC categories: 1-6=Low, 7-10=Middle, 11-12=High
     def _income(val):
@@ -424,7 +523,10 @@ FEATURE_COLS = [
     "f_bmi", "f_glucose", "f_hba1c",
     "f_hdl", "f_ldl", "f_triglycerides", "f_crp",
     "f_egfr", "f_creatinine", "f_bun", "f_uric_acid",
-    "f_alt", "f_ggt",
+    "f_alt", "f_ggt", "f_ast",
+    "f_albumin", "f_insulin",
+    "f_hemoglobin", "f_hct", "f_wbc",
+    "f_sodium", "f_potassium", "f_calcium",
     "f_income", "f_insurance", "f_employment",
 ]
 
@@ -470,13 +572,21 @@ def _merge_cycle(dfs: dict) -> pd.DataFrame | None:
         ("hdl",    ["SEQN", "LBDHDD"]),
         ("glu",    ["SEQN", "LBXGLU"]),
         ("ghb",    ["SEQN", "LBXGH"]),
-        ("biopro", ["SEQN", "LBXSCR", "LBXSUA", "LBXSBU", "LBXSATSI", "LBXSGTSI"]),
+        ("biopro", ["SEQN", "LBXSCR", "LBXSUA", "LBXSBU", "LBXSATSI", "LBXSGTSI",
+                    "LBXSASSI",   # AST
+                    "LBXSAL",     # Albumin
+                    "LBXSNASI",   # Serum sodium
+                    "LBXSKSI",    # Serum potassium
+                    "LBXSCASI",   # Serum calcium
+                    ]),
         ("hscrp",  ["SEQN", "LBXHSCRP"]),
         ("smq",    ["SEQN", "SMQ020", "SMQ040"]),
         ("paq",    ["SEQN", "PAQ605", "PAQ620", "PAD615", "PAD630"]),
         ("alq",    ["SEQN", "ALQ130"]),
         ("hiq",    ["SEQN", "HIQ011"]),
         ("ocq",    ["SEQN", "OCQ150"]),
+        ("cbc",    ["SEQN", "LBXHGB", "LBXHCT", "LBXWBCSI"]),
+        ("ins",    ["SEQN", "LBXIN"]),
     ]
     for key, cols in merges:
         if key not in dfs:
@@ -514,6 +624,8 @@ def build():
         "LBXSATSI", "LBXSGTSI", "LBXHSCRP",
         "SMQ020", "SMQ040", "PAD615", "PAD630", "ALQ130",
         "HIQ011", "OCQ150",
+        "LBXSASSI", "LBXSAL", "LBXSNASI", "LBXSKSI", "LBXSCASI",
+        "LBXHGB", "LBXHCT", "LBXWBCSI", "LBXIN",
     ]
     for col in num_cols:
         if col in df.columns:

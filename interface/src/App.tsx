@@ -7,26 +7,42 @@ export interface RiskFilters {
   ageGroup?: string;
   gender?: string;
   ethnicity?: string;
-  incomeLevel?: string;
-  education?: string;
+  socioeconomicStatus?: string;
+  income?: string;
   insuranceStatus?: string;
-  // Cardiovascular Biomarkers
-  bloodPressure?: string;
-  totalCholesterol?: string;
-  ldlCholesterol?: string;
-  hdlCholesterol?: string;
-  triglycerides?: string;
-  // Metabolic Biomarkers
-  fastingGlucose?: string;
-  hba1c?: string;
-  bmi?: string;
-  creatinine?: string;
-  uricAcid?: string;
+  employmentStatus?: string;
   // Lifestyle
   smokingStatus?: string;
   alcoholUse?: string;
   physicalActivity?: string;
   diet?: string;
+  // Metabolic & Cardiovascular
+  bmi?: string;
+  bloodGlucose?: string;
+  hba1c?: string;
+  insulin?: string;
+  HDL?: string;
+  LDL?: string;
+  triglycerides?: string;
+  crp?: string;
+  // Renal & Kidney
+  egfr?: string;
+  creatinine?: string;
+  BUN?: string;
+  uricAcid?: string;
+  albumin?: string;
+  // Liver
+  alt?: string;
+  ast?: string;
+  ggt?: string;
+  // Blood Counts
+  hemoglobin?: string;
+  hct?: string;
+  wbc?: string;
+  // Electrolytes
+  sodium?: string;
+  potassium?: string;
+  calcium?: string;
   [key: string]: string | undefined;
 }
 
@@ -62,7 +78,7 @@ const ALL_DISEASES: { id: string; label: string }[] = [
 // --- Filter category config ---
 const FILTER_SECTIONS: { label: string; keys: (keyof RiskFilters)[] }[] = [
   {
-    label: 'Demographics & socioeconomic',
+    label: 'Demographics & Socioeconomic',
     keys: ['ageGroup', 'gender', 'ethnicity', 'socioeconomicStatus', 'income', 'insuranceStatus', 'employmentStatus'],
   },
   {
@@ -70,12 +86,28 @@ const FILTER_SECTIONS: { label: string; keys: (keyof RiskFilters)[] }[] = [
     keys: ['smokingStatus', 'alcoholUse', 'physicalActivity', 'diet'],
   },
   {
-    label: 'Renal & Kidney Function',
-    keys: ['uricAcid', 'creatinine', 'egfr', 'BUN'],
+    label: 'Glucose & Insulin Metabolism',
+    keys: ['bmi', 'bloodGlucose', 'hba1c', 'insulin'],
   },
   {
-    label: 'Metabolic & Cardiovascular',
-    keys: ['bmi', 'bloodGlucose', 'hba1c', 'HDL', 'LDL', 'triglycerides', 'crp'],
+    label: 'Lipid Panel & Inflammation',
+    keys: ['HDL', 'LDL', 'triglycerides', 'crp'],
+  },
+  {
+    label: 'Renal Function',
+    keys: ['egfr', 'creatinine', 'BUN', 'albumin', 'uricAcid'],
+  },
+  {
+    label: 'Liver Enzymes',
+    keys: ['alt', 'ast', 'ggt'],
+  },
+  {
+    label: 'Complete Blood Count (CBC)',
+    keys: ['hemoglobin', 'hct', 'wbc'],
+  },
+  {
+    label: 'Electrolytes & Minerals',
+    keys: ['sodium', 'potassium', 'calcium'],
   },
 ];
 
@@ -112,7 +144,7 @@ function FilterSection({
   activeFilters: RiskFilters;
   onChange: (key: keyof RiskFilters, value: string) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const activeCount = keys.filter((k) => activeFilters[k]).length;
 
   return (
